@@ -1,0 +1,90 @@
+### Read the csv file
+
+```{r}
+setwd('C:/Users/daala/Desktop/R course/Reproducible research/Week 2')
+activity <- read.csv("activity.csv")
+activity$date <- as.POSIXct(activity$date, "%Y-%m-%d")
+weekday <- weekdays(activity$date)
+activity <- cbind(activity, weekday)
+```
+
+
+
+### Ques 2
+###Histogram of the total number of steps taken each day
+
+```{r}
+activity_total_steps <- with(activity, aggregate(steps, by = list(date), FUN = sum, na.rm =TRUE))
+names(activity_total_steps) <- c("date","steps")
+hist(activity_total_steps$steps, main = "total number of steps taken per day", xlab = "Total steps taken per day", col = "darkblue", ylim = c(0,20), breaks = seq(0,25000,by = 2500))
+```
+
+### Ques 3
+### Mean and median of the total steps taken
+```{r}
+rmean <- mean(activity_total_steps$steps)
+
+rmeadian <- median(activity_total_steps$steps)
+```
+
+### what is the average daily activity patterns?
+```{r}
+steps_by_interval <- aggregate(steps~interval, activity, mean)
+plot(steps_by_interval$interval, steps_by_interval$steps, xlab="Interval", ylab = "Number of steps", main = "Avg numer of steps per day")
+
+# 5-minute interval on avg across all the days in the data set
+max_interval <- steps_by_interval[which.max(steps_by_interval$steps),1]
+```
+
+### Impute missing values. Compare imputed to non-imputed data
+Missing values were imputed bu inserting the avg for each interval
+```{r}
+not_complete <- sum(!complete.cases(activity))
+imputed_data <- transform(activity, steps = ifelse(is.na(activity$steps), steps_by_interval$steps[match(activity$interval,steps_by_interval$interval)], activity$steps))
+```
+
+Zeroes to be imputed for 10-01-2012 because it was the first day
+```{r}
+imputed_data[as.character(imputed_data$date) == 2012-10-01, 1] <- 0
+```
+
+Recount total steps by day and create histogram
+```{r}
+steps_by_day_i <- aggregate(steps ~ date, imputed_data, sum)
+hist(steps_by_day_i$steps, main = paste("total steps Each day"), col="blue",xlab="Number of steps")
+
+#create histograms to show diff
+
+hist(steps_by_day_i$steps, main = paste("total steps each day"), col="red", xlab="Number of steps", add=T)
+legend("topright", c("Imputed","Non-Imputed"), col=c("blue","red"), lwd=10)
+```
+
+Mean and median of the data
+```{r}
+rmean_i <- mean(steps_by_day_i$steps)
+rmedian_i <- median(steps_by_day_i$steps)
+```
+
+Difference between imputed and non-imputed data
+```{r}
+mean_diff <- rmean_i - rmean
+median_diff <- rmedian_i - rmedian
+```
+
+Total difference
+```{r}
+total_diff <- sum(steps_by_day_i$steps) - sum(steps_by_day_i$steps)
+```
+
+
+### Is there any difference between activities in weekdays and weekends
+```{r}
+weekdays <- c("Monday","Tuesday","Wednesday","Thursday","Friday")
+imputed_data$dow = as.factor(ifelse(is.element(weekdays(as.Date(imputed_data$date)),weekdays),"Weekday","Weekend"))
+
+steps_by_interval_i <- aggregate(steps ~ interval + dow, imputed_data, mean)
+
+library(lattice)
+xyplot(steps_by_interval_i$steps ~ steps_by_interval_i$interval|steps_by_interval_i$dow, main = "Avg Steps per day by interval", xlab="Interval",ylab="Steps",layout=c(1,2), type="1")
+```
+
